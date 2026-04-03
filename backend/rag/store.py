@@ -6,8 +6,8 @@ from qdrant_client.models import (
     Distance, VectorParams,
     PointStruct, Filter, FieldCondition, MatchValue
 )
-from config import config
-
+from backend.config import config
+import uuid
 
 def _get_client() -> QdrantClient:
     # return QdrantClient(
@@ -50,7 +50,11 @@ def save_chunks(chunks: list, embeddings: list[list[float]]):
 
     points = [
         PointStruct(
-            id=abs(hash(f"{chunk.source}_{chunk.chunk_index}")) % (2 ** 63),
+            # hash() hash() 在不同 Python 进程里结果可能不同
+            # 而且有极小概率碰撞
+            # id=abs(hash(f"{chunk.source}_{chunk.chunk_index}")) % (2 ** 63),
+            # 更稳定的方案，改用 uuid
+            id=str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{chunk.source}_{chunk.chunk_index}")),
             vector=embedding,
             payload={
                 "content": chunk.content,
@@ -114,3 +118,29 @@ def delete_by_source(source: str):
             ]
         ),
     )
+
+def list_sources() -> list[str]:
+    """
+    从 Qdrant 里读取所有已存入的文件名
+    """
+    client = _get_client()
+    sources = set()
+    offset = None
+
+    while True:
+        results, offset = client.scroll(
+            collection_name=config.QDRANT_COLLECTION,
+            scroll_filter=None,
+            limit=100,
+            offset=offset,
+            with_payload=["source"],
+        )
+
+        for point in results:
+            sources.add(point.payload["source"])
+
+        if offset is None:
+            break
+
+    return sorted(list(sources))
+
