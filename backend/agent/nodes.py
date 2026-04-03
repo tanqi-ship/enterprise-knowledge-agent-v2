@@ -4,7 +4,7 @@ from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
 
-from config import config
+from backend.config import config
 from .state import AgentState
 from .tools import all_tools
 
