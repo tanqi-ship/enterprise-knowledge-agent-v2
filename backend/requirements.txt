@@ -1,0 +1,15 @@
+# LLM
+langchain
+langgraph
+langchain-openai
+# 读取 .env 文件中的环境变量
+python-dotenv
+# 用 SQLite 保存 Agent 的对话状态
+langgraph-checkpoint-sqlite
+# Web 框架
+fastapi
+# 连接 Qdrant 向量数据库的客户端
+qdrant-client
+# 文档解析
+pdfplumber
+python-docx
