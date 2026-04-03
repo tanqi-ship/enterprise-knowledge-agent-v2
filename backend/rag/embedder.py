@@ -2,7 +2,7 @@
 # 调用 SiliconFlow Embedding API，把文本转成向量
 
 import httpx
-from config import config
+from backend.config import config
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
