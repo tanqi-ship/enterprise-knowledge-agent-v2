@@ -47,6 +47,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - .:/app
       - ./uploads:/app/uploads
       - ./logs:/app/logs
     depends_on:
@@ -64,6 +65,8 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/htm
     depends_on:
       - backend
 

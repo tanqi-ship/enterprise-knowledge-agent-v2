@@ -7,15 +7,29 @@ from .edges import should_continue
 from .nodes import agent_node, tool_node
 from .state import AgentState
 
-# ✅ 连接池：自动管理连接的创建/回收/重连
+import psycopg
+
+# # ✅ 连接池：自动管理连接的创建/回收/重连
+# _pool = ConnectionPool(
+#     conninfo=config.CHECKPOINT_DB_URL,
+#     min_size=1,
+#     max_size=10,
+#     open=True,           # 立即建立连接
+# )
+# _db = PostgresSaver(_pool)
+# _db.setup()
+
+# 第一步：用 autocommit 独立连接做初始化
+with psycopg.connect(config.CHECKPOINT_DB_URL, autocommit=True) as setup_conn:
+    PostgresSaver(setup_conn).setup()
+
+# 第二步：业务用连接池（normal 事务模式）
 _pool = ConnectionPool(
     conninfo=config.CHECKPOINT_DB_URL,
     min_size=1,
     max_size=10,
-    open=True,           # 立即建立连接
 )
 _db = PostgresSaver(_pool)
-_db.setup()
 
 def build_graph() -> CompiledStateGraph:
     graph = StateGraph(AgentState)
