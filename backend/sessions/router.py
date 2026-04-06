@@ -1,34 +1,49 @@
 import time
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_core.messages import AIMessage, HumanMessage
+
+from backend.database import get_db
 from backend.sessions.service import (
-    db_list_sessions, db_create_session,
-    db_update_title, db_delete_session
+    db_list_sessions,
+    db_create_session,
+    db_update_title,
+    db_delete_session,
 )
+from backend.auth.deps import get_current_user
+from backend.auth.models import CurrentUser
 
 router = APIRouter(prefix="/sessions", tags=["会话"])
-
 
 class TitleRequest(BaseModel):
     title: str
 
-
+# ── 获取所有会话 ──────────────────────────────────────────
 @router.get("")
-def get_sessions():
+async def get_sessions(
+    current_user: CurrentUser = Depends(get_current_user),  # 添加当前用户依赖
+    session: AsyncSession = Depends(get_db)  # ✅ 注入 session
+):
     """获取所有会话列表"""
-    return db_list_sessions()
+    return await db_list_sessions(session,current_user.id)
 
-
+# ── 新建会话 ──────────────────────────────────────────────
 @router.post("")
-def new_session():
+async def new_session(
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db)  # ✅ 注入 session
+):
     """新建会话"""
     thread_id = f"thread_{int(time.time())}"
-    return db_create_session(thread_id)
+    return await db_create_session(session, thread_id,current_user.id)
 
-
+# ── 获取某个会话的历史消息 ────────────────────────────────
 @router.get("/{thread_id}")
-def get_session_messages(thread_id: str):
+async def get_session_messages(
+        thread_id: str,
+        current_user: CurrentUser = Depends(get_current_user)
+):
     """获取某个会话的历史消息"""
     from backend.agent import build_graph
     agent = build_graph()
@@ -48,16 +63,25 @@ def get_session_messages(thread_id: str):
 
     return {"messages": result}
 
-
+# ── 修改会话标题 ──────────────────────────────────────────
 @router.put("/{thread_id}/title")
-def update_title(thread_id: str, req: TitleRequest):
+async def update_title(                          # ✅ 改为 async def
+    thread_id: str,
+    req: TitleRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db)      # ✅ 注入 session
+):
     """修改会话标题"""
-    db_update_title(thread_id, req.title)
+    await db_update_title(session, thread_id, req.title)  # ✅ 加 await
     return {"success": True}
 
-
+# ── 删除会话 ──────────────────────────────────────────────
 @router.delete("/{thread_id}")
-def delete_session(thread_id: str):
+async def delete_session(                        # ✅ 改为 async def
+    thread_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db)      # ✅ 注入 session
+):
     """删除会话"""
-    db_delete_session(thread_id)
+    await db_delete_session(session, thread_id)  # ✅ 加 await
     return {"success": True}

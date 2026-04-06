@@ -1,7 +1,7 @@
 from langchain_core.messages import AIMessage
 from langgraph.graph import END
 
-from config import config
+from backend.config import config
 from .state import AgentState
 
 

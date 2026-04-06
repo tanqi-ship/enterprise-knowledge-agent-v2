@@ -1,15 +1,33 @@
-# LLM
+﻿# LLM
 langchain
 langgraph
 langchain-openai
 # 读取 .env 文件中的环境变量
 python-dotenv
 # 用 SQLite 保存 Agent 的对话状态
-langgraph-checkpoint-sqlite
+# langgraph-checkpoint-sqlite
+# LangGraph 的 Postgres 支持
+langgraph-checkpoint-postgres
+
+# PostgreSQL 数据库
+psycopg2-binary
+psycopg[binary]
+
 # Web 框架
 fastapi
+uvicorn
 # 连接 Qdrant 向量数据库的客户端
 qdrant-client
 # 文档解析
 pdfplumber
 python-docx
+# 处理表单
+python-multipart>=0.0.9
+
+python-jose[cryptography]   # JWT 生成与验证
+bcrypt==4.0.1
+# ORM / 异步数据库操作
+sqlalchemy
+# PostgreSQL 异步驱动
+asyncpg
+psycopg-pool

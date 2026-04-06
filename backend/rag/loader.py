@@ -1,6 +1,4 @@
-# rag/loader.py
 # 读取各种格式的文件，切割成小块
-
 import os
 from dataclasses import dataclass
 

@@ -1,18 +1,21 @@
-import sqlite3
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg_pool import ConnectionPool          # ✅ 使用连接池
 from langgraph.graph import START, END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
-
+from backend.config import config
 from .edges import should_continue
 from .nodes import agent_node, tool_node
 from .state import AgentState
 
-DB_PATH = "memory.db"
-
-# ← 在模块级别创建连接，保持连接不关闭
-_conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-_db = SqliteSaver(_conn)
-
+# ✅ 连接池：自动管理连接的创建/回收/重连
+_pool = ConnectionPool(
+    conninfo=config.CHECKPOINT_DB_URL,
+    min_size=1,
+    max_size=10,
+    open=True,           # 立即建立连接
+)
+_db = PostgresSaver(_pool)
+_db.setup()
 
 def build_graph() -> CompiledStateGraph:
     graph = StateGraph(AgentState)

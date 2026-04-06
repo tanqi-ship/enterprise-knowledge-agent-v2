@@ -10,12 +10,12 @@ from backend.config import config
 import uuid
 
 def _get_client() -> QdrantClient:
-    # return QdrantClient(
-    #     host=config.QDRANT_HOST,
-    #     port=config.QDRANT_PORT,
-    # )
-    # 直接保存到项目目录
-    return QdrantClient(path="./qdrant_data")
+    return QdrantClient(
+        host=config.QDRANT_HOST,
+        port=config.QDRANT_PORT,
+    )
+    # # 直接保存到项目目录
+    # return QdrantClient(path="./qdrant_data")
 
 
 def ensure_collection():
@@ -79,7 +79,7 @@ def search_similar(query_vector: list[float], top_k: int = 5) -> list[dict]:
     client = _get_client()
 
     # results = client.search(
-    #     collection_name=config.QDRANT_COLLECTION,
+    #     collection_name=config.py.QDRANT_COLLECTION,
     #     query_vector=query_vector,
     #     limit=top_k,
     #     with_payload=True,
