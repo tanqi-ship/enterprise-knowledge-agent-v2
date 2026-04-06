@@ -20,6 +20,8 @@ uvicorn main:app --reload --port 8000
 # ─── 生命周期（替代原来顶层直接调用） ──────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await init_db()
+    ensure_collection()
     yield                  # 启动完成
     _pool.close()          # ✅ 服务关闭时释放所有连接
 

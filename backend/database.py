@@ -40,7 +40,7 @@ async def init_db():
                 phone         VARCHAR(20)  UNIQUE,
                 email         VARCHAR(100) UNIQUE,
                 gender        VARCHAR(10),
-                password_hash TEXT         NOT NULL,
+                hashed_password TEXT         NOT NULL,
                 role          VARCHAR(20)  NOT NULL DEFAULT 'user',
                 is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
                 created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
