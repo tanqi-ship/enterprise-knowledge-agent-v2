@@ -1,8 +1,8 @@
-import os
 import httpx
 from langchain_core.tools import tool
 from dotenv import load_dotenv
 from backend.config import config
+from datetime import datetime
 import json
 
 
@@ -65,16 +65,22 @@ def _format_search_results(data: dict) -> str:
     格式化搜索结果和摘要为可读文本
     """
     output_parts = []
+    # ✅ 从正确的路径取数据
+    inner = data.get("data", {})
 
     # 如果有 AI 摘要，则优先展示
-    if data.get("summary"):
-        output_parts.append(f"【AI 搜索摘要】\n{data['summary']}\n")
+    if inner.get("summary"):
+        output_parts.append(f"【AI 搜索摘要】\n{inner['summary']}\n")
+
+    # 搜索结果
+    web_pages = inner.get("webPages", {})
+    results = web_pages.get("value", [])
 
     # 展示详细结果
-    if data.get("results"):
+    if results:
         output_parts.append("【详细搜索结果】")
-        for i, item in enumerate(data["results"], 1):
-            title = item.get("title", "无标题")
+        for i, item in enumerate(results, 1):
+            title = item.get("name", "无标题")
             url = item.get("url", "无链接")
             snippet = item.get("snippet", "无摘要")
 
@@ -115,7 +121,10 @@ def web_search(
         str: 包含 AI 摘要（如果有）和/或详细搜索结果的格式化文本
     """
     # 第一步：执行搜索
-    raw_data = _perform_web_search(query, count, freshness, summary)
+    # ✅ 自动在 query 里注入当前日期，帮助搜索引擎返回最新结果
+    today = datetime.now().strftime("%Y年%m月%d日")
+    query_with_date = f"{query} {today}"
+    raw_data = _perform_web_search(query_with_date, count, freshness, summary)
 
     if not raw_data:
         return f"未能获取关于「{query}」的搜索结果，请稍后重试或更换关键词。"
