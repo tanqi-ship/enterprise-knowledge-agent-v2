@@ -12,44 +12,57 @@ app = build_graph()
 
 
 def run_turn(user_input: str, thread_id: str) -> str:
-    """运行单轮对话（流式输出）"""
     print(f"\n🧑 用户：{user_input}")
 
     config_dict = {"configurable": {"thread_id": thread_id}}
     input_state = {"messages": [HumanMessage(content=user_input)]}
 
     final_answer = ""
-    printed_tool_results = set()
-    is_first_chunk = True  # 控制是否打印前缀
+    is_first_chunk = True
+    printed_tool_calls = False
 
-    # stream_mode 改成 "messages" 才能流式输出
     for chunk, metadata in app.stream(
         input_state,
         config_dict,
-        stream_mode="messages"  # ← 关键：改成 messages 模式
+        stream_mode="messages"
     ):
-        # 工具调用消息
-        if isinstance(chunk, AIMessage) and chunk.tool_calls:
-            for tc in chunk.tool_calls:
-                print(f"\n🔧 调用工具：{tc['name']}")
-                print(f"   参数：{tc['args']}")
+        # 工具结果到达时，从 state 里读完整的工具调用参数
+        if isinstance(chunk, ToolMessage):
+            if not printed_tool_calls:
+                state = app.get_state(config_dict)
+                messages = state.values.get("messages", [])
+                for msg in reversed(messages):
+                    if isinstance(msg, AIMessage) and msg.tool_calls:
+                        for tc in msg.tool_calls:
+                            print(f"\n🔧 调用工具：{tc['name']}")
+                            print(f"   参数：{tc['args']}")
+                        break
+                printed_tool_calls = True
 
-        # 工具返回结果
-        elif isinstance(chunk, ToolMessage):
-            if chunk.id not in printed_tool_results:
-                print(f"   ↳ 结果：{chunk.content}")
-                printed_tool_results.add(chunk.id)
-                is_first_chunk = True  # 工具结果之后重置前缀
+            # ✅ 找到对应工具名再打印结果
+            state = app.get_state(config_dict)
+            messages = state.values.get("messages", [])
+            for msg in reversed(messages):
+                if isinstance(msg, AIMessage) and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        if tc["id"] == chunk.tool_call_id:
+                            print(f"   ↳ [{tc['name']}] 结果：{chunk.content}")
+                    break
+
+            is_first_chunk = True
+
 
         # AI 流式输出
         elif isinstance(chunk, AIMessage) and not chunk.tool_calls and chunk.content:
+            printed_tool_calls = False  # 重置，准备下一轮工具调用
             if is_first_chunk:
                 print(f"\n🤖 助手：", end="", flush=True)
                 is_first_chunk = False
-            print(chunk.content, end="", flush=True)  # ← 逐字打印，不换行
+            print(chunk.content, end="", flush=True)
             final_answer += chunk.content
 
-    print()  # 流式输出结束后换行
+    print()
+    db_update_time(thread_id)
     return final_answer
 
 
@@ -112,6 +125,57 @@ def show_history(thread_id: str):
         elif isinstance(msg, ToolMessage):
             print(f"   ↳ {msg.content[:80]}...")
 
+def db_create_session(thread_id: str):
+    """新建会话时同步写入 sessions 表"""
+    from datetime import datetime
+    now = datetime.now().isoformat()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            thread_id   TEXT PRIMARY KEY,
+            title       TEXT DEFAULT '新对话',
+            created_at  TEXT,
+            updated_at  TEXT
+        )
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO sessions (thread_id, title, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?)",
+        (thread_id, "新对话", now, now)
+    )
+    conn.commit()
+
+
+def db_update_time(thread_id: str):
+    """更新会话最后活跃时间"""
+    from datetime import datetime
+    conn.execute(
+        "UPDATE sessions SET updated_at = ? WHERE thread_id = ?",
+        (datetime.now().isoformat(), thread_id)
+    )
+    conn.commit()
+
+
+def list_sessions() -> list[str]:
+    """查看数据库中所有会话"""
+    cursor = conn.cursor()
+
+    # 确保表存在
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            thread_id   TEXT PRIMARY KEY,
+            title       TEXT DEFAULT '新对话',
+            created_at  TEXT,
+            updated_at  TEXT
+        )
+    """)
+
+    # ✅ 改成从 sessions 表查
+    cursor.execute(
+        "SELECT thread_id, title, updated_at "
+        "FROM sessions ORDER BY updated_at DESC"
+    )
+    return cursor.fetchall()
+
 
 def chat_loop():
     """交互式多轮对话"""
@@ -122,8 +186,8 @@ def chat_loop():
     if sessions:
         print(f"\n{'=' * 50}")
         print(f"📋 历史会话（共 {len(sessions)} 个）：")
-        for i, (tid, _) in enumerate(sessions):
-            print(f"  [{i + 1}] {tid}")
+        for i, (tid, title, updated_at) in enumerate(sessions):
+            print(f"  [{i + 1}] {tid} - {title}")
         print(f"{'=' * 50}")
         print("💡 输入数字继续历史会话，直接回车开始新会话")
 
@@ -137,6 +201,7 @@ def chat_loop():
         else:
             # 新会话
             current_thread = f"thread_{int(time.time())}"
+            db_create_session(current_thread)
             print(f"\n🆕 新会话开始（会话ID：{current_thread}）")
     else:
         # 没有历史记录，直接新建
@@ -220,6 +285,7 @@ def chat_loop():
             continue
 
         run_turn(user_input, current_thread)
+
 
 
 def main():
