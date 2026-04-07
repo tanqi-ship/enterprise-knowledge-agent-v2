@@ -89,6 +89,12 @@ def _format_search_results(data: dict) -> str:
                 f"   链接：{url}\n"
                 f"   摘要：{snippet}"
             )
+        # ✅ 在末尾单独列出所有参考链接，方便 AI 引用
+        output_parts.append("\n【参考链接汇总】")
+        for i, item in enumerate(results, 1):
+            title = item.get("name", "无标题")
+            url = item.get("url", "无链接")
+            output_parts.append(f"{i}. {title}：{url}")
     else:
         output_parts.append("\n未找到相关搜索结果。")
 
