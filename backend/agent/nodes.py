@@ -7,6 +7,7 @@ import logging
 from backend.config import config
 from .state import AgentState
 from .tools import all_tools
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ def _summarize_messages(messages: list) -> str:
 
 
 def agent_node(state: AgentState) -> AgentState:
+    start = time.time()
     """核心决策节点：调用 LLM，决定直接回答或调用工具"""
     logger.info("进入节点 agent_node.")  # 记录进入节点
     all_messages = state["messages"]
@@ -78,6 +80,11 @@ def agent_node(state: AgentState) -> AgentState:
     # 判断当前 iteration 是否是新一轮对话的开始
     # 新一轮对话：最后一条消息是 HumanMessage
     from langchain_core.messages import HumanMessage as HM
+
+    today = datetime.now().strftime("%Y年%m月%d日")
+    system_content = config.SYSTEM_PROMPT.replace("{today}", today)  # ← 第二处：生成带日期的提示词
+
+    
     last_msg = all_messages[-1]
     if isinstance(last_msg, HM):
         # 新一轮对话开始，重置迭代次数
@@ -99,7 +106,7 @@ def agent_node(state: AgentState) -> AgentState:
 
         system_message = SystemMessage(
             content=(
-                f"{config.SYSTEM_PROMPT}\n\n"
+                f"{system_content}\n\n"
                 f"以下是早期对话的摘要，供你参考：\n{summary}"
             )
         )
@@ -133,10 +140,11 @@ def agent_node(state: AgentState) -> AgentState:
 
 
     else:
-        system_message = SystemMessage(content=config.SYSTEM_PROMPT)
+        system_message = SystemMessage(content=system_content)
         messages = [system_message] + all_messages
         logger.debug("Invoking LLM with full context...")  # 记录 LLM 调用前
         response: AIMessage = llm.invoke(messages)
+        print(f"⏱️ LLM 推理耗时：{time.time() - start:.2f}s")
 
         logger.info(
             f"LLM responded. Tool calls: {bool(response.tool_calls)}, Content length: {len(response.content) if response.content else 0}")  # 记录 LLM 调用后
