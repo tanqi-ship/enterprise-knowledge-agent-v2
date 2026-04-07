@@ -1,6 +1,7 @@
 # 企业知识代理系统
 **登陆地址**：http://8.210.54.253/login
 
+![项目演示1](https://github.com/user-attachments/assets/1bb79408-9b1f-40ba-9716-85c9151cb65f)
 
 
 一个基于 AI 的企业知识管理与问答系统，采用 LangGraph 架构实现智能 Agent，支持多模态知识检索与交互。
